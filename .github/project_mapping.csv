@@ -2,3 +2,7 @@ project_prefix,directory
 PTM,personal_task_management
 HMA,horror_movie_analytics
 TEST,test_project
+PDE,personal_development_environment
+DAE,data_analytics_engineering
+FIDO,fido_tech_work
+AZURE,azure_cloud_development
