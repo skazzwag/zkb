@@ -27,7 +27,8 @@ echo 'eval "$(uvx --generate-shell-completion bash)"' >> ~/.bashrc
 
 # Install duckdb for analytics work
 curl https://install.duckdb.org | sh
-echo 'alias duckdb="~/.duckdb/cli/latest/./duckdb"' >> ~/.bashrc
+# Add DuckDB latest to path
+export PATH="/home/zak/.duckdb/cli/latest":$PATH
 
 # Install PostgreSQL CLI for version 17
 sudo apt install curl ca-certificates
@@ -65,9 +66,8 @@ sudo apt install cowsay
 sudo apt install sl
 uv tool install snowmachine
 
-# Install tmux
-sudo apt install tmux
-git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+# Install herdr instead of tmux
+curl -fsSL https://herdr.dev/install.sh | sh
 
 # Install fresh as terminal text editor
 curl https://raw.githubusercontent.com/sinelaw/fresh/refs/heads/master/scripts/install.sh | sh

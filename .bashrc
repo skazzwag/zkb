@@ -201,7 +201,7 @@ export EDITOR="fresh --wait"
 export VISUAL="fresh --wait"
 
 # DuckDB alias
-alias duckdb="~/.duckdb/cli/latest/./duckdb"
+export PATH="/home/zak/.duckdb/cli/latest":$PATH
 
 # Starship prompt
 export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
