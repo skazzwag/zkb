@@ -1,0 +1,69 @@
+[project]
+name = "warehouse_transforms"
+version = "0.1.0"
+description = "Analytics pipelines (dlt, Dagster, dbt)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "invoke>=2.2.0",
+    "python-dotenv[cli]>=1.1.0",
+    "duckdb==1.5.6",
+    "dlt[workspace]>=1.26.0",
+]
+package-mode = false
+
+[dependency-groups]
+dev = [
+    "black>=23.1.0",
+    "flake8>=6.0.0",
+    "pytest>=7.2.1",
+    "isort>=5.12.0",
+    "pre-commit>=3.5.0",
+    "sqlfluff>=3.5.0",
+    "sqlfluff-templater-dbt>=3.5.0",
+    "dbt-datadict>=0.3.0",
+    "marimo>=0.23.9",
+    "pyyaml>=6.0.3",
+]
+dbt = [
+    "adlfs>=2025.8.0",
+    "dbt-core>=1.10.13",
+    "dbt-duckdb==1.10.0",
+    "pydantic>=2.12.3",
+]
+dagster = [
+    "azure-identity>=1.25.1",
+    "azure-keyvault>=4.2.0",
+    "azure-storage-blob>=12.27.1",
+    "dagster>=1.12.20",
+    "dagster-dbt>=0.28.20",
+    "dagster-dg-cli>=1.12.20",
+    "dagster-dlt>=0.28.20",
+    "dagster-docker>=0.28.20",
+    "dagster-postgres>=0.28.20",
+    "dagster-webserver>=1.12.20",
+    "dlt[parquet,sql_database,postgres]>=1.24.0",
+    "loguru>=0.7.3",
+    "mysql-connector-python>=9.5.0",
+    # Upper bound: SQLAlchemy 2.1 makes psycopg (v3) the default dialect for
+    # bare postgresql:// URLs, but dagster_postgres builds the instance
+    # storage URL without a driver and the image only ships psycopg2-binary,
+    # so run launch fails with ModuleNotFoundError: No module named 'psycopg'.
+    "sqlalchemy>=2.0.44,<2.1",
+]
+
+
+[build-system]
+requires = ["uv_build>=0.8.2,<0.9.0"]
+build-backend = "uv_build"
+
+
+[tool.uv]
+package = false
+default-groups = "all"
+build-backend.namespace = true
+
+
+[tool.dg]
+directory_type = "project"
+project.root_module = "ingestion"

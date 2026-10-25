@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+---
+name: Build and Push Dagster Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_user_code:
+        type: boolean
+        default: true
+        description: Deploy the user code
+      deploy_web_server:
+        type: boolean
+        default: false
+        description: Deploy the web server and daemon
+#  push:
+#    branches: ["main"]
+#    paths:
+#      - ".dagster_home/dagster.yaml"
+#      - ".dlt/config.toml"
+#      - ".github/workflows/dagster-docker-build.yaml"
+#      - "ingestion/**"
+#      - "transformation/**"
+#      - "pyproject.toml"
+#      - "uv.lock"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Azure login (Service Principal)
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ vars.AZURE_SP_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_SP_CLIENT_SECRET }}","subscriptionId":"${{ vars.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Login to ACR
+        run: az acr login --name "${AZURE_ACR_URL%%.*}"
+        env:
+          AZURE_ACR_URL: ${{ vars.AZURE_ACR_URL }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: List available container apps
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az extension add --name containerapp --upgrade
+            az containerapp list --resource-group "${{ vars.AZURE_RESOURCE_GROUP_NAME }}"
+
+      # Create an image tag based on the current timestamp and print it
+      - name: Set image tag
+        run: |
+          echo "DAGSTER_IMAGE_TAG=$(date +%Y%m%d-%H%M%S)" >> "$GITHUB_ENV"
+          echo DAGSTER_IMAGE_TAG=$DAGSTER_IMAGE_TAG DAGSTER_IMAGE_TAG=${{ env.DAGSTER_IMAGE_TAG }}
+
+      # User code image and container app
+      - name: Build and push Docker image (user code)
+#         if: ${{ inputs.deploy_user_code || github.event_name == 'push' }}
+        if: ${{ inputs.deploy_user_code }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./ingestion/dockerfiles/user_code.Dockerfile
+          tags: ${{ vars.AZURE_ACR_URL }}/${{ vars.DAGSTER_USER_CODE_TAG_NAME }}:${{ env.DAGSTER_IMAGE_TAG }}
+          platforms: linux/amd64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Container App (user code)
+#         if: ${{ inputs.deploy_user_code || github.event_name == 'push' }}
+        if: ${{ inputs.deploy_user_code }}
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az extension add --name containerapp --upgrade
+            az containerapp update \
+              --name "dagster-user-code" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP_NAME }}" \
+              --image "${{ vars.AZURE_ACR_URL }}/${{ vars.DAGSTER_USER_CODE_TAG_NAME }}:${{ env.DAGSTER_IMAGE_TAG }}"
+
+      # Webserver image and webserver/daemon container apps
+      - name: Build and push Docker image (web server)
+        if: ${{ inputs.deploy_web_server }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./ingestion/dockerfiles/webserver.Dockerfile
+          tags: ${{ vars.AZURE_ACR_URL }}/${{ vars.DAGSTER_WEBSERVER_TAG_NAME }}:${{ env.DAGSTER_IMAGE_TAG }}
+          platforms: linux/amd64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Container App (webserver)
+        if: ${{ inputs.deploy_web_server }}
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az extension add --name containerapp --upgrade
+            az containerapp update \
+              --name "dagster-webserver" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP_NAME }}" \
+              --image "${{ vars.AZURE_ACR_URL }}/${{ vars.DAGSTER_WEBSERVER_TAG_NAME }}:${{ env.DAGSTER_IMAGE_TAG }}"
+
+      - name: Update Container App (daemon)
+        if: ${{ inputs.deploy_web_server }}
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az extension add --name containerapp --upgrade
+            az containerapp update \
+              --name "dagster-daemon" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP_NAME }}" \
+              --image "${{ vars.AZURE_ACR_URL }}/${{ vars.DAGSTER_WEBSERVER_TAG_NAME }}:${{ env.DAGSTER_IMAGE_TAG }}"

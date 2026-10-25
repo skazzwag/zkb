@@ -1,0 +1,4 @@
+event_id,event_name,occurred_at
+1,created,2026-01-01 00:00:00
+2,updated,2026-01-02 12:30:00
+3,deleted,2026-01-03 08:15:00

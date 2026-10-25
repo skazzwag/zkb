@@ -1,0 +1,38 @@
+analytics_warehouse:
+  target: dev-local
+
+  outputs:
+    defaults: &defaults
+      type: duckdb
+      threads: 4
+      extensions:
+        - httpfs
+        - parquet
+        - spatial
+
+    prod:
+      <<: *defaults
+      path: "md:prod_analytics?motherduck_token={{ env_var('MOTHERDUCK_PROD_TOKEN') }}"
+      schema: dbt_prod
+      threads: 2
+      attach:
+        - path: "md:prod_operations"
+          alias: prod_operations
+
+    dev-local:
+      <<: *defaults
+      path: warehouse.duckdb
+      schema: dbt
+
+    dev-cloud:
+      <<: *defaults
+      path: "md:dev_analytics?motherduck_token={{ env_var('MOTHERDUCK_DEV_USER_TOKEN') }}"
+      schema: "dbt_{{ env_var('MOTHERDUCK_DEV_USER') }}"
+      attach:
+        - path: "md:dev_operations"
+          alias: dev_operations
+
+    ci:
+      <<: *defaults
+      path: "md:{{ env_var('MOTHERDUCK_CI_DATABASE', 'ci_analytics') }}?motherduck_token={{ env_var('MOTHERDUCK_CI_TOKEN') }}"
+      schema: "{{ env_var('MOTHERDUCK_CI_SCHEMA', 'dbt_ci') }}"

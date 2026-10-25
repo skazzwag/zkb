@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: act_events
+    description: Activation subset of events for reverse ETL.
+    columns:
+      - name: event_id
+        data_type: integer
+        description: Unique event identifier
+        data_tests:
+          - not_null
+          - unique
+      - name: event_name
+        data_type: varchar
+        description: Event type name
+        data_tests:
+          - not_null
+      - name: occurred_at
+        data_type: timestamp
+        description: When the event happened
+        data_tests:
+          - not_null
+      - name: is_deleted
+        data_type: boolean
+        description: Always false in this activation subset
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [false]

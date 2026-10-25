@@ -1,0 +1,159 @@
+name: MotherDuck Access Updates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/motherduck/**/*.sql'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      prod_files: ${{ steps.changed.outputs.prod_files }}
+      ci_files: ${{ steps.changed.outputs.ci_files }}
+      hub_files: ${{ steps.changed.outputs.hub_files }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for correct diff
+
+      - id: changed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Compare before/after for the push to main
+          CHANGED=$(git diff --name-only --diff-filter=d "${{ github.event.before }}" "${{ github.sha }}" \
+            | grep -E '^infrastructure/motherduck/.+\.sql$' || true)
+
+          to_json_array() {
+            local input="$1"
+            if [ -z "$input" ]; then
+              echo '[]'
+            else
+              printf '%s\n' "$input" | jq -R -s -c 'split("\n")[:-1]'
+            fi
+          }
+
+          if [ -z "$CHANGED" ]; then
+            echo 'prod_files=[]' >> "$GITHUB_OUTPUT"
+            echo 'ci_files=[]' >> "$GITHUB_OUTPUT"
+            echo 'hub_files=[]' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Split changed scripts by service-account directory.
+          PROD_CHANGED=$(printf '%s\n' "$CHANGED" | grep -E '^infrastructure/motherduck/prod/[^/]+\.sql$' || true)
+          CI_CHANGED=$(printf '%s\n' "$CHANGED" | grep -E '^infrastructure/motherduck/ci/[^/]+\.sql$' || true)
+          HUB_CHANGED=$(printf '%s\n' "$CHANGED" | grep -E '^infrastructure/motherduck/hub/' || true)
+
+          HUB_JSON='[]'
+          if [ -n "$HUB_CHANGED" ]; then
+            HUB_ITEMS=""
+            while IFS= read -r hub_path; do
+              if [ -z "$hub_path" ]; then
+                continue
+              fi
+              case "$hub_path" in
+                infrastructure/motherduck/hub/*/*.sql) ;;
+                *)
+                  echo "Unexpected hub SQL path (expected hub/<account>/<file>.sql): $hub_path" >&2
+                  exit 1
+                  ;;
+              esac
+              hub_account=$(printf '%s\n' "$hub_path" | awk -F/ '{print $4}')
+              if ! printf '%s' "$hub_account" | grep -Eq '^[a-z][a-z0-9_]*$'; then
+                echo "Invalid hub account folder: $hub_account" >&2
+                exit 1
+              fi
+              hub_account_upper=$(printf '%s' "$hub_account" | tr '[:lower:]' '[:upper:]')
+              HUB_ITEMS="${HUB_ITEMS}$(jq -nc --arg sql_file "$hub_path" --arg account "$hub_account_upper" '{sql_file: $sql_file, account: $account}')"$'\n'
+            done < <(printf '%s\n' "$HUB_CHANGED")
+            HUB_JSON=$(printf '%s' "$HUB_ITEMS" | jq -s -c '.')
+          fi
+
+          echo "prod_files=$(to_json_array "$PROD_CHANGED")" >> "$GITHUB_OUTPUT"
+          echo "ci_files=$(to_json_array "$CI_CHANGED")" >> "$GITHUB_OUTPUT"
+          echo "hub_files=$HUB_JSON" >> "$GITHUB_OUTPUT"
+
+  run-prod-sql:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.prod_files != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sql_file: ${{ fromJSON(needs.detect-changes.outputs.prod_files) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install DuckDB CLI
+        run: |
+          wget https://github.com/duckdb/duckdb/releases/download/v1.4.4/duckdb_cli-linux-amd64.zip
+          unzip duckdb_cli-linux-amd64.zip
+          chmod +x duckdb
+
+      - name: Run SQL script on MotherDuck
+        env:
+          MOTHERDUCK_TOKEN: "${{ secrets.MOTHERDUCK_PROD_TOKEN }}"
+          SQL_FILE: "${{ matrix.sql_file }}"
+        run: |
+          echo "Running $SQL_FILE"
+          ./duckdb "md:?motherduck_token=$MOTHERDUCK_TOKEN" < "$SQL_FILE"
+
+  run-ci-sql:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.ci_files != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sql_file: ${{ fromJSON(needs.detect-changes.outputs.ci_files) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install DuckDB CLI
+        run: |
+          wget https://github.com/duckdb/duckdb/releases/download/v1.4.4/duckdb_cli-linux-amd64.zip
+          unzip duckdb_cli-linux-amd64.zip
+          chmod +x duckdb
+
+      - name: Run SQL script on MotherDuck
+        env:
+          MOTHERDUCK_TOKEN: "${{ secrets.MOTHERDUCK_CI_TOKEN }}"
+          SQL_FILE: "${{ matrix.sql_file }}"
+        run: |
+          echo "Running $SQL_FILE"
+          ./duckdb "md:?motherduck_token=$MOTHERDUCK_TOKEN" < "$SQL_FILE"
+
+  run-hub-sql:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.hub_files != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.detect-changes.outputs.hub_files) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install DuckDB CLI
+        run: |
+          wget https://github.com/duckdb/duckdb/releases/download/v1.4.4/duckdb_cli-linux-amd64.zip
+          unzip duckdb_cli-linux-amd64.zip
+          chmod +x duckdb
+
+      - name: Run SQL script on MotherDuck
+        env:
+          MOTHERDUCK_TOKEN: "${{ secrets.MOTHERDUCK_PROD_TOKEN }}"
+          SQL_FILE: "${{ matrix.sql_file }}"
+          ACCOUNT: "${{ matrix.account }}"
+        run: |
+          set -euo pipefail
+          if [ -z "${MOTHERDUCK_TOKEN}" ]; then
+            echo "Missing GitHub secret MOTHERDUCK_PROD_TOKEN" >&2
+            exit 1
+          fi
+          echo "Running $SQL_FILE for hub account $ACCOUNT (as prod service account)"
+          ./duckdb "md:?motherduck_token=$MOTHERDUCK_TOKEN" < "$SQL_FILE"

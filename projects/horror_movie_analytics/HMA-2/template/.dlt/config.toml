@@ -1,0 +1,14 @@
+[runtime]
+log_level="INFO"
+dlthub_telemetry = true
+
+[extract]
+workers = 2
+max_parallel_items = 4
+
+[normalize]
+workers = 1
+start_method = "spawn"
+
+[load]
+workers = 1

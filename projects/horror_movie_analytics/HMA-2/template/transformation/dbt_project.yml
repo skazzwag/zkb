@@ -1,0 +1,72 @@
+name: 'warehouse_transforms'
+version: '1.0.0'
+config-version: 2
+
+profile: 'analytics_warehouse'
+
+require-dbt-version: '>=1.10.13'
+
+model-paths: ["models"]
+analysis-paths: ["analysis"]
+test-paths: ["tests"]
+seed-paths: ["data"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+on-run-start:
+  - "{{ create_azure_secrets() }}"
+
+models:
+  +sql_header: "set TimeZone='UTC';"
+  warehouse_transforms:
+    +persist_docs:
+      relation: true
+      columns: true
+    1_staging:
+      +tags: ["stg"]
+      +schema: "{{ 'dbt_stg' if target.name == 'prod' else target.schema}}"
+      +materialized: table
+      +docs:
+        node_color: "#cd7f32"
+    2_intermediate:
+      +schema: "{{ 'dbt_int' if target.name == 'prod' else target.schema}}"
+      +materialized: table
+    3_domain:
+      +schema: "{{ 'dbt_dmn' if target.name == 'prod' else target.schema}}"
+      +materialized: table
+      +docs:
+        node_color: "#c0c0c0"
+    4_presentation:
+      +schema: "{{ 'dbt_prs' if target.name == 'prod' else target.schema}}"
+      +materialized: table
+      +docs:
+        node_color: "#efbf04"
+    5_activation:
+      +schema: "{{ 'dbt_act' if target.name == 'prod' else target.schema}}"
+      +materialized: table
+      +docs:
+        node_color: "#efbf04"
+    utils:
+      +schema: "{{ 'dbt_stg' if target.name == 'prod' else target.schema}}"
+      +materialized: table
+
+seeds:
+  +schema: "{{ 'dbt_seed' if target.name == 'prod' else target.schema}}"
+
+tests:
+  +store_failures: "{{ target.name == 'prod' }}"
+
+dispatch:
+  - macro_namespace: dbt
+    search_order:
+      - warehouse_transforms
+      - dbt
+
+flags:
+  require_explicit_package_overrides_for_builtin_materializations: false
+  source_freshness_run_project_hooks: true
+  send_anonymous_usage_stats: false
+  require_generic_test_arguments_property: true
