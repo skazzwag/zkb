@@ -1,0 +1,199 @@
+init:
+  version: 0.1.0
+  description: Shared rules, secrets handling, and workspace MCP for dlt
+  tags:
+  - dlt
+  - init
+  - rules
+  - secrets
+  - mcp
+  installed_at: '2026-05-20T14:05:48.262597+00:00'
+  agent: cursor
+  files:
+    .cursor/skills/improve-skills/SKILL.md:
+      sha3_256: c52b222d82d101eaacbbf19d271d3f24b20d8e2bc70d49919d56144d448cd5c4
+    .cursor/skills/setup-secrets/SKILL.md:
+      sha3_256: cec0417ff73959818936a113da042f923e99a0ae6ea4d47bca0d79fef0e783e5
+    .cursor/skills/setup-secrets/cli-reference.md:
+      sha3_256: 75c153cbac239add05e8b986ed347326d9bf1b161a01cc0e072908d93073cce9
+    .cursor/skills/toolkit-dispatch/SKILL.md:
+      sha3_256: 5cf2059c1c82275144a5ec8310b0ba27a0290a1a9c722cc41a098d4d1b938ebc
+    .cursorignore:
+      sha3_256: 1aa4dc9286dd219dcb55399f388c5ee1f940ab5e399a42b644d488cba57a9ec0
+    .cursor/rules/init-dlthub-workspace.mdc:
+      sha3_256: e029db2c53114a7f1245e603aeeea8a6392c75451aff059d86ca3bcbcad56e55
+  mcp_servers:
+  - dlt-workspace-mcp
+  name: init
+data-exploration:
+  version: 0.1.0
+  description: Quick insights from dlt pipeline data. Connect to a pipeline, profile
+    tables, plan charts, and assemble marimo dashboards.
+  tags:
+  - dlt
+  - marimo
+  - ibis
+  - data-exploration
+  - dashboards
+  - altair
+  dependencies:
+  - init
+  workflow_entry_skill: explore-data
+  installed_at: '2026-05-20T14:09:22.012500+00:00'
+  agent: cursor
+  files:
+    .cursor/skills/build-notebook/SKILL.md:
+      sha3_256: f853f8ef20abcf409953760ef560f5842ef2792a9d2a561925b0bcc4f311ca2c
+    .cursor/skills/build-notebook/references/notebook-patterns.md:
+      sha3_256: 96d80469820be9e1beddd10961b0a588da526c7678a0d12561e24f30e91037d3
+    .cursor/skills/explore-data/SKILL.md:
+      sha3_256: bff422bf09e9f6cadc31cea2618232920e048f963ff5d5e9c9b96859c1ad5dda
+    .cursor/skills/explore-data/references/analysis-plan-format.md:
+      sha3_256: 8fcb5223200f4e566432fda35be8b555b8a88274b9f1dc42c41a21c4d6ddbab5
+    .cursor/skills/explore-data/references/dlt-relation-api.md:
+      sha3_256: 4145d283ab6c0bf87e5289460f0a951aa2163d6ae118dfdca69eef824f2d91ee
+    .cursor/rules/data-exploration-workflow.mdc:
+      sha3_256: 650f37c52a896e98b30e019532d4491dfa3bf026bfeece758b79abf7633b1378
+  name: data-exploration
+data-quality:
+  version: 0.1.0
+  description: Add checks and metrics to dlt pipelines — inspect schema for candidates,
+    define column-level validations and load metrics, run them on every pipeline load,
+    and review results with failure diagnosis.
+  tags:
+  - dlt
+  - data-quality
+  - validation
+  - checks
+  - metrics
+  dependencies:
+  - init
+  workflow_entry_skill: setup-data-quality
+  installed_at: '2026-05-20T14:10:02.017134+00:00'
+  agent: cursor
+  files:
+    .cursor/skills/define-data-quality-checks/SKILL.md:
+      sha3_256: 909c820c87ae3c8faf928ba42fb5a6d1c1906786dac62f9629e7d7a98ca638c6
+    .cursor/skills/review-data-quality/SKILL.md:
+      sha3_256: 914f203a5064ff9c53b1d2bf511bcb0f5de65d3437930345a68acdc7da594ab8
+    .cursor/skills/run-data-quality/SKILL.md:
+      sha3_256: 11e8ad8cc49135fa80acff8895999ab2ec276995889440a373d59b071da96964
+    .cursor/skills/setup-data-quality/SKILL.md:
+      sha3_256: 547524d480323efda854bf7f32359410bb6cfb49a6f350f8b877cd1b89dabd04
+    .cursor/rules/data-quality-dq-rules.mdc:
+      sha3_256: 113fde069954c840b6bafb75d6fc8ce25497a010c93818bc2bdb3853e3c36563
+    .cursor/rules/data-quality-workflow.mdc:
+      sha3_256: 896baaea5023a573328cfe51c2212482bb8c6a56c01ae422f8691ce8283a5370
+  name: data-quality
+filesystem-pipeline:
+  version: 0.1.0
+  description: Load files (CSV, Parquet, JSONL, or custom) from local disk, S3, GCS,
+    Azure, or SFTP into a destination using dlt's filesystem source.
+  tags:
+  - dlt
+  - filesystem
+  - s3
+  - gcs
+  - azure
+  - sftp
+  - csv
+  - parquet
+  - jsonl
+  dependencies:
+  - init
+  workflow_entry_skill: create-filesystem-pipeline
+  installed_at: '2026-05-20T14:10:21.611682+00:00'
+  agent: cursor
+  files:
+    .cursor/skills/add-incremental-loading/SKILL.md:
+      sha3_256: 71651e931da9336eafb103bd5f33826075df7c167d9ce32279031282305fc1cc
+    .cursor/skills/create-filesystem-pipeline/SKILL.md:
+      sha3_256: 98f4df9c847c6be29bf38f309418f4bc2b09f1eefe141d205583115d4a1885dd
+    .cursor/rules/filesystem-pipeline-workflow.mdc:
+      sha3_256: 6e8946261a1af664ab0f512dc4784df5a4e3b18d4c2299fe229111d833dc89f9
+  name: filesystem-pipeline
+rest-api-pipeline:
+  version: 0.1.0
+  description: 'Build REST API pipelines with dlt: scope, debug and validate data'
+  tags:
+  - dlt
+  - etl
+  - data-pipeline
+  - python
+  dependencies:
+  - init
+  workflow_entry_skill: find-source
+  installed_at: '2026-05-20T14:10:42.388407+00:00'
+  agent: cursor
+  files:
+    .cursor/skills/adjust-endpoint/SKILL.md:
+      sha3_256: 19a5bea2699788d3a8796d6651ce908d3a173a6a76e7fd7b15bcff4827ab3ce9
+    .cursor/skills/create-rest-api-pipeline/SKILL.md:
+      sha3_256: df0bfc630024d13665f8995d34b4716479ddd8d5b874650a21cf3546ccfb78f2
+    .cursor/skills/debug-pipeline/SKILL.md:
+      sha3_256: c4132cb2eb47f6cff3b0388a85e95e47633050a6e8148f3062b3b279c808be0d
+    .cursor/skills/find-source/SKILL.md:
+      sha3_256: 79565aa6a261898babdfe85442ed9405cc3ddd746178bbd381122a8eb61e7491
+    .cursor/skills/new-endpoint/SKILL.md:
+      sha3_256: 6562b4ef49d0934550904b8b1b0e29c0ed5cb3d6ab9caa453cad68f9c8bb209e
+    .cursor/skills/validate-data/SKILL.md:
+      sha3_256: f05396405ad5981a912246e0747a5de51d70f69f840bf42a20d4ae9cc466a4ca
+    .cursor/skills/view-data/SKILL.md:
+      sha3_256: 3402cd3743aa6cda5533053640d77deaac3f1c8cdb982bcfbff7c6fe677bc0c8
+    .cursor/rules/rest-api-pipeline-workflow.mdc:
+      sha3_256: e044c446a572e7dd3ea9288cfe118d776f7e5dad2b06ce78e771d9c4c8b08527
+  name: rest-api-pipeline
+sql-database-pipeline:
+  version: 0.1.0
+  description: 'Build SQL database pipelines with dlt: connect to any SQL source,
+    load tables to a destination, tune performance with backends'
+  tags:
+  - dlt
+  - etl
+  - data-pipeline
+  - python
+  - sql
+  - database
+  dependencies:
+  - init
+  workflow_entry_skill: find-source
+  installed_at: '2026-05-20T14:11:40.931808+00:00'
+  agent: cursor
+  files:
+    .cursor/skills/add-table/SKILL.md:
+      sha3_256: 3bfd4cb487748055e6d52106bff21364292860e872a98245c705c1f75f7c5435
+    .cursor/skills/adjust-table/SKILL.md:
+      sha3_256: ca6662f2924086621d0553c3151e43ad31105fb0df6fae84b1bbed768b470b87
+    .cursor/skills/create-sql-database-pipeline/SKILL.md:
+      sha3_256: 90b52616aa42b95013c86be314625d7fd2b1a5b69ffc5bdf8ce769be6cd1eb51
+    .cursor/rules/sql-database-pipeline-workflow.mdc:
+      sha3_256: 7eee720c4b97773705b37ecca25c1968cb33751e94bfb4cb9025bb83504e6d17
+  name: sql-database-pipeline
+transformations:
+  version: 0.1.0
+  description: Transform raw dlt pipeline data into a Canonical Data Model. Build
+    an ontology, design a CDM with Kimball dimensional modeling, write @dlt.hub.transformation
+    functions, and validate the output.
+  tags:
+  - dlt
+  - transformation
+  - cdm
+  - kimball
+  - ibis
+  - dimensional-modeling
+  dependencies:
+  - init
+  workflow_entry_skill: annotate-sources
+  installed_at: '2026-05-20T14:12:05.143345+00:00'
+  agent: cursor
+  files:
+    .cursor/skills/annotate-sources/SKILL.md:
+      sha3_256: 98316fda6abfb9b89b1eec865a0d9bcf206ea211fd2610033ca37c839ace2bc9
+    .cursor/skills/create-ontology/SKILL.md:
+      sha3_256: 1292232346aa3a31f78652d2b188c83d4f4df77b055d673be8dc4e0eb5c1c541
+    .cursor/skills/create-transformation/SKILL.md:
+      sha3_256: 1db3d95cc9846bf1e38fd1fcc2d9d1c01264a88f22e2e7a590adede98ebfbc05
+    .cursor/skills/generate-cdm/SKILL.md:
+      sha3_256: 6f4e7ac39c43f2af30bcce41976a844d97ecb996bd1dca74956eee72dd41c003
+    .cursor/rules/transformations-workflow.mdc:
+      sha3_256: 9d040c87f491335562836a9c82e1b97f2fb7df3134336b00b0251094caa10de5

@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: example_bronze
+    description: >
+      Placeholder source for bronze files loaded by dlt. Point `location` at
+      your compacted or raw parquet prefix after the first real pipeline run.
+    schema: example
+    tables:
+      - name: posts
+        description: Example posts resource from the template REST source
+        columns:
+          - name: id
+            data_type: bigint
+            description: Post identifier
+          - name: user_id
+            data_type: bigint
+            description: Author identifier
+          - name: title
+            data_type: varchar
+            description: Post title
+          - name: body
+            data_type: varchar
+            description: Post body

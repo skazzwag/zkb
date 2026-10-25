@@ -1,0 +1,14 @@
+# MotherDuck Guides
+
+Before querying MotherDuck, writing warehouse SQL, or changing dbt models that
+land in `prod_*` / `dev_*` / `hub_*`, load the relevant Guides. Do not infer
+join paths, grains, or metric definitions from table names alone.
+
+Local Guides live under `transformation/guides/<prod_database>/<guide-slug>/guide.md`.
+Always start with `transformation/guides/warehouse-overview/`.
+
+When applying a prod Guide to `dev-cloud`, rewrite `prod_<name>` → `dev_<name>`
+and prod schemas (`dbt_dmn`, …) → the developer schema `dbt_{user}`. Do not
+change table names or business rules.
+
+Suggest Guide updates; do not create or edit Guides unless the user asks.

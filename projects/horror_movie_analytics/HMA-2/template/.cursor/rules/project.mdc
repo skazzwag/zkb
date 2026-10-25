@@ -1,0 +1,406 @@
+---
+description: Core project instructions
+alwaysApply: true
+---
+
+# Fido Tech Context Primer
+
+## What Fido Does
+Fido is a water leak detection platform that uses AI and acoustic sensors to identify leaks in water utility infrastructure. Their platform generates AI predictions about potential leak locations, which field engineers then investigate, repair if confirmed, and validate.
+
+
+## Core Concepts
+Waypoints: These are the fundamental unit in Fido's system. A waypoint is basically a dynamic container that tracks the entire lifecycle of a potential leak - from initial AI prediction through field investigation, repair work, and final validation. Think of it as a living record that accumulates information as engineers work on it.
+
+Leak Sites: Physical locations where leaks have been confirmed and repaired. These are tracked with repair dates, cubic metre savings targets, and validation status.
+
+Loggers: Acoustic sensors deployed in the field that record data for AI analysis. These have sessions associated with them tracking when and where they were deployed.
+
+AI Analysis: The system runs predictions on logger data to flag potential leaks. These predictions feed into the waypoint system.
+
+DMAs (District Metered Areas): Isolated sections of water distribution network where flow can be measured. Water utilities divide their network into DMAs to monitor consumption patterns and detect anomalies. Fido operates within these defined areas, tracking coverage and targeting water savings per DMA.
+
+Sensors/Bugs: Physical acoustic sensors deployed in the field - the hardware devices that collect sound data from the water network. They're called 'bugs' internally and are tracked through the 'bug_deployments' table. The business terminology is now officially 'sensor' but due to legacy tables and implementations 'bug' still exists throughout the source data.
+
+Relay: an IoT device that sends the audio from sensors to Fido Tech.
+
+ODLs (Optimal Deployment Locations): Calculated best positions to place acoustic sensors for leak detection. The system identifies these strategically optimal spots.
+
+Correlation: Acoustic analysis technique where two loggers are placed at different points, and their recordings are compared to pinpoint leak location between them through the time-difference of arrival methodology.
+
+Sweep: AI-powered leak detection analysis that processes logger recordings to identify leak signatures. Results are stored in 'sweep_ds' (standard) and 'temporal_sweep_ds' (time-series with debouncing) tables.
+
+Common Acronyms
+DMA: District Metered Area (isolated section of water network with flow monitoring)
+BLE: Bluetooth Low Energy (used by acoustic sensors for data transfer)
+W3W: What3Words (location reference system using three-word addresses)
+ODL: Optimal Deployment Location (calculated best position to place an acoustic sensor)
+
+Organisational hierarchy (companies → partners, branches)
+User management (users_portal with role-based access)
+Waypoint lifecycle management (waypoints, waypoint_jobs, waypoint_logs)
+Logger sessions and device tracking (logger_sessions, usage_sessions, device_ids)
+Field deployments (bug_deployments for sensor placement)
+AI analysis results (sweep_ds, temporal_sweep_ds for detection, correlation_v8 for localisation)
+DMA management (branch_dmas, dma_scheduling)
+
+## Project Context
+
+Fido Tech have invested in a data warehouse using DuckDB/MotherDuck to improve their use of data throughout the business. This repository contains the ingestion (using dlt), the transformation (using dbt Core), the reverse ETL for the partner api (using dlt) and the orchestration (using dagster) code.
+
+# Fido dbt Project Rules
+
+This document outlines the coding standards, patterns, and conventions for the Fido dbt project to ensure consistency, maintainability, and quality across all models.
+
+## Project Structure & Naming Conventions
+
+### Layer Structure
+- **0_sources/**: Source definitions and freshness tests
+- **1_staging/**: Raw data cleaning and standardization (`stg_{source}__{entity}`)
+- **2_intermediate/**: Business logic and multi-source joins (`int_{logical_name}`)
+- **3_domain/**: Clean business entities (`dmn_{entity}`)
+- **4_presentation/**: Analysis-ready tables (`prs_{logical_name}`)
+- **5_activation/**: Reverse ETL and activation tables (`act_{logical_name}`)
+
+### File Naming
+- Staging: `stg_{source}__{entity}.sql` (double underscore between source and entity)
+- Intermediate: `int_{logical_name}.sql`
+- Domain: `dmn_{entity}.sql`
+- Presentation: `prs_{logical_name}.sql`
+- Activation: `act_{logical_name}.sql`
+- YAML files: `_{layer_name}.yml` or source-specific names
+
+## Macro Usage Standards
+
+### Required Macros
+- **Surrogate keys**: Use `dbt_utils.generate_surrogate_key()` for composite keys
+  ```sql
+  {{ dbt_utils.generate_surrogate_key(['company_id', 'user_id', 'event_timestamp']) }} as event_group_id
+  ```
+
+  ### Schema Behavior by Environment
+- **Production**: Custom schemas used as-is (e.g., `fido_staging`, `fido_domain`)
+- **Dev/QA**: All models build in target schema, custom schemas ignored
+- This is controlled by `generate_schema_name` macro - do not override per model
+
+
+
+### Macro Documentation
+- ALL macros MUST be documented in `macros/_macros.yml`
+- Include clear description of purpose and use cases
+- Document all arguments with name, type, and description
+- Reference source code or external documentation where applicable
+- Include example usage for complex macros
+
+### Project-Specific Macros
+- Use `{{ clean(field_name) }}` for standard field cleaning (empty → null, trim, lowercase)
+- Use `{{ clean_free_text(field_name) }}` for user-input fields (also removes test/placeholder values)
+- Use `{{ convert_units(value, 'input_unit', 'output_unit') }}` for all unit conversions
+- NEVER implement custom cleaning or conversion logic - use project macros
+
+
+## Git Workflow (CRITICAL)
+
+### Absolute Rules
+- ⛔ **NEVER force push** - this will overwrite team member's work
+- ⛔ **NEVER run `dbt` in the agent** - especially not with `--full-refresh`
+- Always pull before pushing
+- Use feature branches for development
+
+
+### Macro Consistency
+- Always use project-specific macros over raw SQL when available
+- Prefer `dbt_utils` functions over custom implementations
+
+## Testing Standards
+
+### Test Format
+- **ALWAYS** use `data_tests:` key (not `tests:`) for dbt 1.8.0+ compatibility
+- Apply tests at the column level within model YAML files
+- Use consistent indentation (2 spaces)
+
+### Required Tests
+- **Primary keys**: `not_null` and `unique` (or `dbt_utils.unique_combination_of_columns`)
+- **Foreign keys**: `relationships` tests to parent tables
+- **Domain models**: Relationship integrity tests between domain entities
+- **Source freshness**: Define freshness tests in source YAML files
+
+### Test Preferences
+- **Prefer `dbt_utils` tests over `dbt_expectations`** for standard validations
+- Use `dbt_utils.unique_combination_of_columns` for composite primary keys (more performant than basic multi-column unique test)
+- Use `dbt_expectations` only for complex validations not available in `dbt_utils`
+- Apply `relationships` tests with appropriate `where` clauses for performance
+
+Example test structure:
+```yaml
+columns:
+  - name: fido_branch_id
+    data_tests:
+      - not_null
+      - relationships:
+          to: ref('prs_branch')
+          field: fido_branch_id
+```
+
+## Data access rules
+
+Use the DuckDB CLI for local analytical data:
+- Local `.duckdb`, `.db`, `.parquet`, `.csv`, `.json`, `.ndjson`, `.sqlite`, or directory-based datasets.
+- Project files under the current workspace.
+- Temporary local analysis, joins, profiling, schema inspection, and export tasks.
+- The dbt target is `dev-local`.
+
+Use the MotherDuck MCP for warehouse data:
+- Any database, schema, table, or view hosted in MotherDuck.
+- Queries involving `md:` databases or shared MotherDuck databases.
+- Catalog discovery, warehouse table inspection, and production/warehouse analytics.
+- The dbt target is `dev-cloud` or `prod`.
+
+Do not use the DuckDB CLI for MotherDuck-hosted warehouse data unless explicitly asked.
+Do not use the MotherDuck MCP for local workspace files unless the data has first been uploaded/registered in MotherDuck.
+
+When a request mixes local files and MotherDuck warehouse tables:
+1. Inspect local files with DuckDB CLI.
+2. Inspect warehouse objects with MotherDuck MCP.
+3. Prefer moving the smaller side of the join into the other environment only after explaining the plan.
+4. Avoid uploading local sensitive data to MotherDuck unless explicitly approved.
+
+## Documentation Standards
+
+### Model YAML Documentation
+- Every dbt model must have an associated YAML file in the same directory.
+- The YAML file must document every model column with its `name`, `data_type`, and `description`.
+- Keep column descriptions in the model YAML file. Do not use `datadictionary.yml` as the canonical source for model-column documentation.
+- Include column-level `data_tests` alongside the column documentation where applicable.
+
+## Design Patterns
+
+## SQL Anti-Patterns
+
+### Join Conditions
+- Rarely use OR conditions in joins - they prevent optimizer from using hash joins
+- Instead, normalize NULL values to sentinel values before joining
+- Example: Use `coalesce(field, '__NULL__')` in CTEs, then join on exact matches
+
+### Performance Patterns
+- Prefer equi-joins over complex conditional joins
+- Handle NULL matching in CTEs before joins, not in join conditions
+- Use sentinel values consistently across the project (e.g., '__NULL__', -1)
+
+
+### Event Data Patterns
+- Apply `qualify` statements for deduplication
+- Use consistent event metadata enrichment patterns
+- Maintain event lineage through surrogate keys
+
+### CTE Structure
+- Use descriptive CTE names
+- Follow consistent ordering: source → transformations → final
+- Keep CTEs focused on single logical operations
+- Use `final` CTE as the last step before select
+
+## Configuration Standards
+
+### Model Configuration
+- Set appropriate materializations per layer
+- Apply tags for logical groupings
+- Configure clustering for large tables
+- Set `persist_docs` for documentation
+
+### Variable Usage
+- Use project variables for environment-specific values
+- Apply consistent variable naming conventions
+- Document all custom variables in `dbt_project.yml`
+
+### Target-Specific Logic
+- Use `target.name` for environment-specific behavior
+- Apply appropriate data sampling in dev/ci environments
+- Configure different warehouse sizes per environment
+
+## Code Quality Standards
+
+### Python Style
+- Use numpy docstrings complete with parameters, returns/yields and raises.
+- Always give type hints in function/class definitions and docstrings.
+- Define typed dictionary classes instead of using ambiguous type hints like Any, dict, list, object and tuple. When list and dict have types for what they contain (e.g. list[str], dict[str, int]) they are not ambiguous.
+- Prefer function-based programming rather than writing classes.
+- Always use pytest for any python code testing.
+- Always use `uv` for package management and executing python from CLI.
+- Do not use a leading underscore on function names.
+- Avoid try-except statements unless they are for specific cases. 
+- Use logic that avoids the need for try-except statements when possible.
+- Avoid nested if-statements unless absolutely needed.
+- Avoid isinstance checks unless they serve a genuinely useful purpose.
+- Do not wrap a single expression in its own function; use the expression at the call site.
+- Prefer the provider's documented API (Azure, dlt, Dagster, and similar) over custom wrapper classes around it.
+
+### SQL Style
+- Follow sqlfluff configuration rules
+- Use consistent indentation (4 spaces for SQL, 2 for YAML)
+- Apply meaningful aliases. NEVER use single letter aliases
+- Use explicit column selection (avoid `select *` except in staging or data marts)
+
+### Documentation Updates
+- **Prefer `search_and_replace` over `edit_file`** for updating markdown/documentation files
+- Make targeted, surgical edits to specific sections rather than rewriting large blocks
+- This preserves surrounding content and reduces risk of information loss
+- Use `edit_file` only when creating new files or making structural changes
+
+### Performance Optimization
+- Use appropriate warehouse sizes via macros
+- Apply clustering on frequently filtered columns
+- Implement proper incremental strategies
+- Use `qualify` for efficient deduplication
+
+### Error Handling
+- Implement proper null handling in transformations
+- Add validation for critical business logic
+
+### CTE Structure
+- Use descriptive CTE names that indicate transformation purpose
+- Common patterns: `{entity}_normalized`, `{entity}_enriched`, `{entity}_deduplicated`
+- Follow consistent ordering: source → normalized → enriched → aggregated → final
+- Keep CTEs focused on single logical operations
+- **ALWAYS** use `final` CTE as the last step before select
+- Prepare data for joins in dedicated CTEs (e.g., normalize NULLs before joining)
+
+### Code Review Checklist
+- [ ] Proper macro usage (warehouse sizing, incremental filtering)
+- [ ] Tests use `data_tests:` key
+- [ ] No column descriptions in model YAML (use data dictionary)
+- [ ] Appropriate test coverage (primary keys, foreign keys)
+- [ ] Consistent naming conventions
+- [ ] Proper incremental configuration
+- [ ] Environment-specific logic where needed
+
+### Automated Checks
+- sqlfluff linting passes
+- All tests pass in CI/CD
+- Documentation builds successfully
+- No hardcoded warehouse names
+- Consistent use of project macros
+
+## Migration Guidelines
+
+### Updating Existing Models
+- When modifying models, ensure they follow current standards
+- Update test format from `tests:` to `data_tests:`
+- Move column descriptions to data dictionary
+- Apply proper macro usage
+
+### New Model Development
+- Start with appropriate layer template
+- Use established naming conventions
+- Implement required tests from the beginning
+- Document in data dictionary before model creation
+
+## Unit Testing Standards
+
+### Test File Naming
+- Unit tests: `unit_test__{model_name}.yml`
+- Place in same directory as the model being tested
+
+### Test Coverage
+- Write unit tests for complex business logic transformations
+- Test edge cases (NULLs, empty strings, boundary values)
+- Test join logic with representative data samples
+
+
+This document should be referenced for all dbt development and updated as patterns evolve.
+
+
+## Infrastructure & Environment
+
+### MotherDuck Configuration
+
+#### `prod_analytics`
+
+- **Schema mapping** (folder → prod schema):
+  - `1_staging` → `dbt_stg`
+  - `2_intermediate` → `dbt_int`
+  - `3_domain` → `dbt_dmn`
+  - `4_presentation` → `dbt_prs`
+  - `5_activation` → `dbt_act`
+  - `6_test` → `dbt_prod`
+  - seeds → `dbt_seed`
+- **Excluded schemas** (not managed by dbt): `elementary`, `dbt_test__audit`
+- **Orphaned tables**: Tables can accumulate in prod without corresponding dbt models. Use `manifest.json` (not filesystem scanning) to audit for orphans.
+
+#### Data Marts
+
+- Data marts are created by copying over specific tables from `prod_analytics` (`dev_analytics` when target is `dev-cloud`) over to other databases in MotherDuck. For example, the `prod_edge` (`dev_edge`) will have SQL scripts that are simply a `select *` from the `prod_analytics` (`dev_analytics`) database and the associated `yml` documentation file copied with the prefix of the model names changed to `acc_`.
+- Never create or delete infrastructure on MotherDuck.
+- Ask for new infrastructure on MotherDuck to be made when needed.
+
+## SQLFluff Rules
+
+### RF02 (Unqualified References) — Recurring Issue
+- **Always qualify all column references** when multiple tables/CTEs are joined, even if column names are unique
+- **Avoid `USING` clauses** — use explicit `ON` conditions instead (USING + RF02 creates false positives)
+- **Avoid `SELECT *`** in CTEs that join multiple tables — enumerate and qualify every column
+- **Common locations missed**: `QUALIFY` clauses, calculated fields, `WHERE` clauses on joined tables
+- When renaming override columns through CTEs, prefix with `override_` to avoid ambiguity (e.g., `additional_comments` → `override_additional_comments`)
+
+---
+
+## Test Failure Investigation
+
+### Standard Diagnostic Pattern
+1. Read compiled SQL from `target/compiled/{project}/models/{layer}/{model}.yml/{test_name}.sql`
+2. Query the failure table in `dbt_test__audit` schema to see actual failing records
+3. Determine: data quality issue vs test configuration issue
+4. Apply fix accordingly
+
+### Known Data Quality Patterns
+- **Orphaned waypoints**: Waypoint logs referencing non-existent waypoints — managed via `waypoints_with_errors` project variable in `dbt_project.yml`. Current exclusions: `'usa_8304','usa_7213','gbl_7213','usa_8089', 'gbl_8089', 'usa_2287', 'gbl_19391'`
+- **Evolving AI result values**: `fido_result` field can gain new values as AI models evolve. Known values: `leak`, `non-leak`, `correlation`, `n/a`, `requires investigation`, `not enough files`, `error`, `positive`
+- **Historical data quality variance**: Early reporting periods (Year 1, Year 2) had different data quality standards — use `where` clauses in tests for progressive enforcement rather than blanket rules
+- **Repaired waypoints without leak types**: Some repaired waypoints have null `actual_leak_type_id`, which cascades to null WRV values
+
+### Refactoring Checklist
+When refactoring models, always check and update:
+- [ ] YAML test definitions (column names may have changed)
+- [ ] Column references in downstream models
+- [ ] Data dictionary entries
+- [ ] Snapshot implications (renaming columns in `check_cols='all'` snapshots invalidates all historical rows)
+
+---
+
+## Snapshot Considerations
+- **Column renaming breaks history**: In `strategy='check'` with `check_cols='all'`, renaming columns invalidates all existing rows (new `dbt_valid_to` set, new rows created). Warn before proceeding.
+- **Composite unique keys**: Created inline in SELECT (e.g., `waypoint_reference||'_in_'||reporting_period_name`)
+- **Override pattern**: Snapshots track manual Google Sheets overrides; use `dbt_valid_to is null` to get current records
+
+---
+
+
+### Presentation Layer for Reuse
+Build rich presentation models that activation/reporting layers can consume. Do NOT duplicate join/filter logic in activation models — reference the presentation layer instead (DRY principle).
+
+### Seed Column Types
+Specify column types for seeds in `dbt_project.yml` when DuckDB infers incorrectly (e.g., boolean from CSV):
+```yaml
+seeds:
+  fido_warehouse_transforms:
+    seed_name:
+      +column_types:
+        config_complete: boolean
+```
+
+---
+
+## Fido Plus Reporting Architecture
+- **Sponsors**: Microsoft, Meta, Coca Cola Foundation — 6 utilities, 10-year planning horizons
+- **Key models**: `stg_fido_plus_config` (sponsor config seed), `prs_fido_plus_waypoints` (joins waypoints with sponsor config)
+- **Patterns**: `config_complete` boolean flag controls active periods; `override_end_date` variable for point-in-time reporting; exclusion flags for non-reportable waypoints (network maintenance, leak fixed onsite)
+- **SCD handling**: `qualify row_number() over (partition by waypoint_id, reporting_period_name order by valid_from desc)` for deduplication
+
+## dlt
+
+### ALWAYS ACTIVATE those skills
+they are essential for ANY work in this project
+- `rest-api-pipeline-workflow`
+
+### Security
+CRITICAL: never ask for credentials in chat. Always let the user edit secrets directly and do not attempt to read them.
+- `init-dlthub-workspace`

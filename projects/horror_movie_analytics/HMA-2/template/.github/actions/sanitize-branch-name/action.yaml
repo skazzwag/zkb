@@ -1,0 +1,69 @@
+name: Sanitize Branch Name
+
+inputs:
+  branch-name:
+    description: Branch name to sanitize
+    required: true
+  base-schema:
+    description: Base schema name
+    required: true
+  pr-number:
+    description: PR number
+    required: true
+
+outputs:
+  sanitized-branch:
+    description: "Sanitized branch name suitable for Snowflake identifiers"
+    value: ${{ steps.sanitize.outputs.sanitized-branch }}
+  schema-name:
+    description: "Complete schema name with format: {base-schema}_{pr-number}_{sanitized-branch}"
+    value: ${{ steps.build-schema.outputs.schema-name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Sanitize branch name for Snowflake schema
+      id: sanitize
+      shell: bash
+      run: |
+        # Get branch name and sanitize it for Snowflake identifier requirements
+        BRANCH_NAME="${{ inputs.branch-name }}"
+
+        echo "Original branch name: $BRANCH_NAME"
+
+        # Convert to uppercase and replace invalid characters with underscores
+        # Snowflake identifiers: alphanumeric + underscore, max 255 chars, can't start with number
+        # We limit to 50 characters to keep it manageable
+        SANITIZED=$(echo "$BRANCH_NAME" | \
+          tr '[:lower:]' '[:upper:]' | \
+          sed 's/[^A-Z0-9_]/_/g' | \
+          sed 's/^[0-9]/BR_&/' | \
+          cut -c1-50)
+
+        # Make sure it doesn't end with underscore
+        SANITIZED=$(echo "$SANITIZED" | sed 's/_*$//')
+
+        # Ensure it's not empty (fallback)
+        if [ -z "$SANITIZED" ]; then
+          SANITIZED="BRANCH"
+        fi
+
+        echo "Sanitized branch name: $SANITIZED"
+        echo "sanitized-branch=$SANITIZED" >> $GITHUB_OUTPUT
+
+    - name: Build schema name
+      id: build-schema
+      shell: bash
+      run: |
+        BASE_SCHEMA="${{ inputs.base-schema }}"
+        PR_NUMBER="${{ inputs.pr-number }}"
+        SANITIZED_BRANCH="${{ steps.sanitize.outputs.sanitized-branch }}"
+
+        SCHEMA_NAME="${BASE_SCHEMA}_${PR_NUMBER}_${SANITIZED_BRANCH}"
+
+        echo "Base schema: $BASE_SCHEMA"
+        echo "PR number: $PR_NUMBER"
+        echo "Sanitized branch: $SANITIZED_BRANCH"
+        echo "Complete schema name: $SCHEMA_NAME"
+
+        echo "schema-name=$SCHEMA_NAME" >> $GITHUB_OUTPUT

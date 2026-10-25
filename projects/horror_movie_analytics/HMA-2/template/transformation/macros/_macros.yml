@@ -1,0 +1,65 @@
+version: 2
+
+macros:
+  - name: clean
+    description: >
+      Standardizes field values by converting empty lists and empty strings to null,
+      and normalizing text fields by trimming whitespace and converting to lowercase.
+    arguments:
+      - name: field_name
+        type: string
+        description: The column name to clean and standardize
+
+  - name: clean_free_text
+    description: >
+      Enhanced cleaning for free-text fields that extends the clean() macro.
+      Converts common placeholder values to null in addition to standard cleaning.
+    arguments:
+      - name: field_name
+        type: string
+        description: The column name containing free-text data to clean
+
+  - name: convert_units
+    description: >
+      Convert between distance or volume units. Distance conversions go through
+      meters; volume conversions go through m3/h.
+    arguments:
+      - name: value
+        type: column
+        description: Column containing the numeric value to convert
+      - name: input_unit
+        type: string
+        description: Source unit
+      - name: output_unit
+        type: string
+        description: Target unit of the same type as input_unit
+
+  - name: initcap
+    description: Title-case each whitespace-separated word.
+    arguments:
+      - name: field_name
+        type: string
+        description: Column to title-case
+
+  - name: drop_schema
+    description: Drop a schema in the selected database.
+    arguments:
+      - name: schema_name
+        type: string
+        description: Schema to drop
+      - name: database_name
+        type: string
+        description: Database containing the schema (defaults to target.database)
+
+  - name: create_azure_secrets
+    description: >
+      Create MotherDuck Azure secrets from connection strings and scope env vars.
+      Skipped for dev-local and parse-only builds.
+
+  - name: generate_schema_name
+    description: >
+      Prod uses custom schemas as-is. Other environments ignore custom schemas
+      except 6_access models, which keep their configured schema.
+
+  - name: generate_database_name
+    description: Use a custom database when configured, otherwise the target database.
