@@ -1,5 +1,9 @@
 {
     "theme": "builtin://terminal",
+    "clipboard": {
+        "use_osc52": true,
+        "use_system_clipboard": true
+    },    
     "file_browser": {
         "show_hidden": true
     },
