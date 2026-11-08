@@ -67,7 +67,7 @@ sudo apt install sl
 uv tool install snowmachine
 
 # Install herdr instead of tmux
-curl -fsSL https://herdr.dev/install.sh | sh
+curl -fsSL https://herdr.dev/install.sh | bash
 
 # Install fresh as terminal text editor
 curl https://raw.githubusercontent.com/sinelaw/fresh/refs/heads/master/scripts/install.sh | sh
