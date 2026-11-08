@@ -1,0 +1,73 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "product-owner",
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow",
+      "*.secrets.toml": "deny",
+      "**/.dlt/secrets.toml": "deny",
+      "**/.motherduck/**": "deny",
+      "**/.duckdb/stored_secrets/**": "deny",
+      "**/.aws/credentials": "deny",
+      "**/profiles.yml": "deny"
+    },
+    "bash": {
+      "*": "ask",
+      "dbt*": "deny",
+      "uv run dbt*": "deny",
+      "uv run --*dbt*": "deny",
+      "python* -m dbt*": "deny",
+      "altimate-dbt*": "deny",
+      "altimate-code run*": "deny",
+      "altimate run*": "deny",
+      "git push --force*": "deny",
+      "git push -f*": "deny",
+      "python tools/dbt/run.py*": "deny",
+      "make guides-push*": "deny",
+      "motherduck guide push*": "deny",
+      "motherduck guide delete*": "deny",
+      "transformation/guides/sync.sh*": "deny"
+    },
+    "motherduck*": "deny",
+    "dlt*": "deny",
+    "dbt*": "deny",
+    "edit": {
+      "*": "ask",
+      ".opencode/**": "deny",
+      ".agents/**": "deny",
+      "AGENTS.md": "deny",
+      "opencode.json": "deny",
+      "tools/dbt/**": "deny"
+    }
+  },
+  "mcp": {
+    "motherduck-remote": {
+      "type": "remote",
+      "url": "https://api.motherduck.com/mcp",
+      "enabled": true
+    }
+  },
+  "watcher": {
+    "ignore": [
+      "**/node_modules/**",
+      "**/target/**",
+      "**/dbt_packages/**",
+      "**/.venv/**",
+      "**/.analysis/**",
+      "**/.cursor/**"
+    ]
+  },
+  "agent": {
+    "plan": {
+      "permission": {
+        "edit": {
+          "*": "deny",
+          ".opencode/plans/**": "allow"
+        }
+      }
+    }
+  }
+}

@@ -126,7 +126,10 @@ sudo apt update
 sudo apt install nodejs npm
 
 # Install opencode
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://opencode.ai/v2/install | bash
+
+# Install altimate-code
+curl -fsSL https://www.altimate.sh/install | bash
 
 # Setup a Nerd Font
 FONT_NAME="FiraMono"
