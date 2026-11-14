@@ -1,3 +1,0 @@
-interface:
-  display_name: "Review Data Quality"
-  short_description: "Core dlt ingestion quality workflow"

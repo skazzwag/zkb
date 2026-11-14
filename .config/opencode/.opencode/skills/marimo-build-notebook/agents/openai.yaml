@@ -1,3 +1,0 @@
-interface:
-  display_name: "Marimo Analysis with Altair"
-  short_description: "Reproducible warehouse analysis and bounded Altair charts"
