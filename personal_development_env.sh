@@ -18,7 +18,10 @@ fi
 EOF
 
 # Install alacritty terminal emulator
-sudo apt install alacritty
+# Using snap package as apt version of alacritty is old
+sudo apt install snapd
+# log out and back in (or reboot) so snap's paths are set up correctly
+sudo snap install alacritty --classic
 
 # Install uv package manager for python work
 curl -LsSf https://astral.sh/uv/install.sh | sh
